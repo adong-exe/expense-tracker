@@ -1,0 +1,21 @@
+{
+  "name": "專屬記帳",
+  "short_name": "記帳",
+  "description": "我的個人雲端記帳本",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f7f6",
+  "theme_color": "#28a745",
+  "icons": [
+    {
+      "src": "icon-192.png",    // 名為icon-192.png的192x192圖片
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",    // 名為icon-512.png的512x512圖片
+      "sizes": "512x512",       // 兩張圖片圖案相同，大小不同
+      "type": "image/png"
+    }
+  ]
+}
