@@ -1,81 +1,59 @@
+
+<!-- ================== -->
+<!-- ===== ver1.2 ===== -->
+<!-- ================== -->
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>記帳</title>
-  
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="theme-color" content="#28a745"> <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#28a745">
+  <link rel="manifest" href="manifest.json">
+  <title>記帳</title>
+  
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <style>
-    /* ========================================= */
-    /* === CSS 區塊：負責網頁的「長相與排版」 === */
-    /* ========================================= */
-
-    /* [全域設定] 讓網頁撐滿螢幕 (100vh)，隱藏預設捲動條 (overflow: hidden) */
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-    
-    /* [頂部標題列] 使用 Flex 排版讓左右按鈕和標題置中對齊 */
     header { display: flex; justify-content: space-between; align-items: center; padding: calc(15px + env(safe-area-inset-top)) 20px 15px 20px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 10; }
     header button { background: none; border: none; font-size: 24px; cursor: pointer; color: #555; padding: 0 15px; }
     header h2 { margin: 0; font-size: 20px; color: #333; }
-    
-    /* [中間內容區] 佔滿剩餘空間 (flex:1)，並允許上下捲動 (overflow-y: auto) */
     .view-container { flex: 1; overflow-y: auto; position: relative; background: #fff; margin: 10px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-    
-    /* [畫面切換邏輯] 預設所有 .view 都是隱藏的 (none)，只有加上 .active 的才會顯示 (block) */
     .view { display: none; padding: 15px; height: 100%; box-sizing: border-box; }
     .view.active { display: block; }
-    
-    /* [日曆版面] 使用 Grid 切成 7 等分 (日到六) */
     .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: bold; color: #888; margin-bottom: 10px; font-size: 14px; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(70px, auto); gap: 5px; }
-    
-    /* [日曆格子] 每個日期的格子設定，加入 cursor:pointer 讓它看起來可以點擊 */
     .calendar-day { border: 1px solid #eee; border-radius: 6px; padding: 5px; display: flex; flex-direction: column; cursor: pointer; }
-    .calendar-day:active { background-color: #f0f0f0; } /* 點擊時的灰色回饋 */
-    .calendar-day .date-num { font-size: 14px; color: #333; } /* 日期數字 */
-    .calendar-day .expense-tag { background: #ffebee; color: #d32f2f; font-size: 12px; padding: 2px 4px; border-radius: 4px; margin-top: 4px; display: inline-block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* 金額小紅底標籤 */
-    .calendar-day.empty { background: #fafafa; border: none; cursor: default; } /* 空白格子無框線 */
-    
-    /* [細項清單版面] 每筆消費的卡片樣式 */
+    .calendar-day:active { background-color: #f0f0f0; } 
+    .calendar-day .date-num { font-size: 14px; color: #333; } 
+    .calendar-day .expense-tag { background: #ffebee; color: #d32f2f; font-size: 12px; padding: 2px 4px; border-radius: 4px; margin-top: 4px; display: inline-block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } 
+    .calendar-day.empty { background: #fafafa; border: none; cursor: default; } 
     .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
     .list-item:active { background-color: #f9f9f9; }
     .list-item:last-child { border-bottom: none; }
     .list-info { display: flex; flex-direction: column; }
     .list-date { font-size: 12px; color: #888; margin-bottom: 4px; }
     .list-name { font-size: 16px; font-weight: bold; color: #333; }
-    .list-category { font-size: 12px; background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; width: fit-content; } /* 分類藍底小標籤 */
+    .list-category { font-size: 12px; background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; width: fit-content; } 
     .list-amount { font-size: 18px; font-weight: bold; color: #d32f2f; }
-    
-    /* [懸浮按鈕 FAB] 固定在右下角 (position: fixed) 的大綠色加號 */
     .fab { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); right: 20px; width: 60px; height: 60px; background-color: #28a745; color: white; border: none; border-radius: 50%; font-size: 32px; box-shadow: 0 4px 10px rgba(40,167,69,0.4); cursor: pointer; z-index: 100; display: flex; justify-content: center; align-items: center; }
-    .fab:active { background-color: #218838; transform: scale(0.95); } /* 按下會稍微縮小 */
-    
-    /* [底部導覽列] 固定在最下方，包含細項、日曆、圓餅圖三個按鈕 */
+    .fab:active { background-color: #218838; transform: scale(0.95); } 
     .bottom-nav { display: flex; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 10; padding-bottom: env(safe-area-inset-bottom); }
     .bottom-nav button { flex: 1; padding: 15px 0; background: none; border: none; border-top: 3px solid transparent; font-size: 16px; color: #777; cursor: pointer; }
-    .bottom-nav button.active { color: #007bff; border-top-color: #007bff; font-weight: bold; } /* 點選中的按鈕變藍色 */
-    
-    /* [彈出視窗] 覆蓋全螢幕的半透明黑色背景 (預設隱藏) */
+    .bottom-nav button.active { color: #007bff; border-top-color: #007bff; font-weight: bold; } 
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: flex-start; padding-top: 10vh; }
-    .modal-overlay.active { display: flex; } /* 加上 active 才會顯示 */
-    .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 80vh; max-height: 80dvh; overscroll-behavior: contain; overflow-y: auto; position: relative; } /* 白色對話框本體 */
-    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; border: none; background: none; cursor: pointer; color: #888; } /* 右上角叉叉 */
-    
-    /* [表單內部排版] */
+    .modal-overlay.active { display: flex; } 
+    .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 80vh; max-height: 80dvh; overscroll-behavior: contain; overflow-y: auto; position: relative; } 
+    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; border: none; background: none; cursor: pointer; color: #888; } 
     .form-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; font-size: 14px; }
     input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-    
-    /* [表單按鈕群] 讓刪除(紅)和送出(綠)按鈕並排 */
     .btn-group { display: flex; gap: 10px; margin-top: 15px; }
     .submit-btn { flex: 1; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; }
-    .delete-btn { width: 35%; padding: 12px; background-color: #dc3545; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; display: none; } /* 預設隱藏，修改模式才顯示 */
-    
+    .delete-btn { width: 35%; padding: 12px; background-color: #dc3545; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; display: none; } 
     #status { text-align: center; margin-top: 15px; font-weight: bold; }
     .loading-text { text-align: center; color: #888; margin-top: 20px; font-weight: bold; }
   </style>
@@ -89,7 +67,6 @@
   </header>
 
   <div class="view-container" id="swipeArea">
-    
     <div id="view-calendar" class="view active">
       <div class="calendar-weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
       <div class="calendar-grid" id="calendarGrid"><div class="loading-text">資料同步中...</div></div>
@@ -148,385 +125,258 @@
   </div>
 
   <script>
-    // 🔴 這是你和 Google Apps Script 溝通的專屬橋樑網址
     const scriptURL = 'https://script.google.com/macros/s/AKfycbxr74urGnLv2RdRAjm2KzcHp35bh1m5wNyz4ErGeWwu20CH5hI-a-s930Tn2-G0OfIk/exec'; 
 
-    // 初始化全域變數
-    let currentDate = new Date(); // 紀錄目前畫面停留在哪一個月
+    let currentDate = new Date(); 
     const monthTitle = document.getElementById('monthTitle');
     const calendarGrid = document.getElementById('calendarGrid');
-    let myPieChart = null; // 存放 Chart.js 圖表物件的變數
-    let appData = {}; // 存放從 Google 抓回來的 JSON 記帳資料
+    let myPieChart = null; 
+    let appData = {}; 
+    
+    // 離線設定
+    const DATA_CACHE_KEY = 'offline_app_data'; 
+    const SYNC_QUEUE_KEY = 'offline_sync_queue'; 
+    let isSyncing = false; // 🔒 同步鎖
 
-    // === 1. 抓取雲端資料 ===
+    // 1. 抓取資料
     function fetchData() {
-      // 透過 fetch 向 Google 發送 GET 請求 (對應到後台的 doGet)
       fetch(scriptURL)
-        .then(response => response.json()) // 把回傳的包裹解析成 JSON
+        .then(response => response.json()) 
         .then(data => {
-          appData = data; // 把拿到的資料存到大腦 (appData) 裡
-          // 資料到了，開始畫出三個畫面
-          renderCalendar();
-          renderList();    
-          renderChart();   
+          appData = data; 
+          localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(appData));
+          renderCalendar(); renderList(); renderChart();   
         })
         .catch(error => {
-          // 如果網路斷線或網址錯了，顯示錯誤訊息
-          calendarGrid.innerHTML = '<div class="loading-text" style="color:red;">讀取失敗，請檢查網路或網址設定</div>';
+          const cachedData = localStorage.getItem(DATA_CACHE_KEY);
+          if (cachedData) {
+            appData = JSON.parse(cachedData);
+            calendarGrid.innerHTML = '<div class="loading-text" style="color:#e6a23c;">⚠️ 目前離線，顯示備份資料</div>';
+            setTimeout(() => { renderCalendar(); renderList(); renderChart(); }, 1000);
+          } else {
+            calendarGrid.innerHTML = '<div class="loading-text" style="color:red;">無法連線，且無備份資料</div>';
+          }
         });
     }
 
-    // === 2. 畫出日曆畫面 ===
     function renderCalendar() {
-      calendarGrid.innerHTML = ''; // 先清空舊格子
+      calendarGrid.innerHTML = ''; 
       const year = currentDate.getFullYear();
-      const month = currentDate.getMonth(); // 注意：JavaScript 的月份是 0~11
-      
-      monthTitle.innerText = `${year}年 ${month + 1}月`; // 更新標題
-      
-      // 計算該月第一天是星期幾 (0是週日, 6是週六)，以及該月總共有幾天
+      const month = currentDate.getMonth(); 
+      monthTitle.innerText = `${year}年 ${month + 1}月`; 
       const firstDay = new Date(year, month, 1).getDay(); 
       const daysInMonth = new Date(year, month + 1, 0).getDate(); 
-      
-      // 迴圈：填補1號前面的空白格子
-      for (let i = 0; i < firstDay; i++) { 
-        calendarGrid.innerHTML += `<div class="calendar-day empty"></div>`; 
-      }
-      
-      // 迴圈：產生 1 號到最後一天的格子
+      for (let i = 0; i < firstDay; i++) { calendarGrid.innerHTML += `<div class="calendar-day empty"></div>`; }
       for (let i = 1; i <= daysInMonth; i++) {
-        // 把日期組裝成 YYYY-MM-DD 的字串，用來去 appData 找資料
         const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-        let expensesHtml = ''; // 準備存放金額標籤的空字串
-        
-        // 如果 appData 裡面有這一天的資料
+        let expensesHtml = ''; 
         if (appData[dateString]) {
-          appData[dateString].forEach(exp => {
-            // 只把「支出」的金額印成紅色標籤放在日曆上
-            if(exp.type === "支出") expensesHtml += `<div class="expense-tag">$${exp.price}</div>`; 
-          });
+          appData[dateString].forEach(exp => { if(exp.type === "支出") expensesHtml += `<div class="expense-tag">$${exp.price}</div>`; });
         }
-        
-        // 創造格子的 HTML 元素
         const dayDiv = document.createElement('div');
         dayDiv.className = 'calendar-day';
         dayDiv.innerHTML = `<span class="date-num">${i}</span>${expensesHtml}`;
-        
-        // 🌟 賦予格子生命：點擊格子時，呼叫 openDailyModal 函數並把日期傳給它
         dayDiv.onclick = () => openDailyModal(dateString);
-        
-        // 把做好的格子塞進網頁裡
         calendarGrid.appendChild(dayDiv);
       }
     }
 
-    // === 3. 創造「明細卡片」的模具 (日曆視窗和細項清單都會用到) ===
     function createExpenseCard(item) {
-      // 判斷是收入還是支出，決定顏色和正負號
       const color = item.type === "收入" ? "green" : "#d32f2f";
       const sign = item.type === "收入" ? "+" : "-";
-      
-      // 創造卡片的 HTML 元素
       const card = document.createElement('div');
       card.className = 'list-item';
-      card.innerHTML = `
-        <div class="list-info">
-          <span class="list-date">${item.date}</span>
-          <span class="list-name">${item.name}</span>
-          <span class="list-category">${item.category} (${item.item})</span>
-        </div>
-        <div class="list-amount" style="color:${color};">${sign}$${item.price}</div>
-      `;
-      // 🌟 賦予卡片生命：點擊卡片時，開啟修改表單，並把這筆明細的資料傳進去
+      card.innerHTML = `<div class="list-info"><span class="list-date">${item.date}</span><span class="list-name">${item.name}</span><span class="list-category">${item.category} (${item.item})</span></div><div class="list-amount" style="color:${color};">${sign}$${item.price}</div>`;
       card.onclick = () => openEditForm(item);
       return card;
     }
 
-    // === 4. 畫出細項清單 ===
     function renderList() {
       const listContainer = document.getElementById('expenseList');
-      listContainer.innerHTML = ''; // 清空舊清單
-      
-      let allExpenses = []; // 準備一個空陣列，用來裝這個月的所有明細
-      // 取得目前的年月字串，例如 "2026-09"
+      listContainer.innerHTML = ''; 
+      let allExpenses = []; 
       const currentYearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-      
-      // 走訪 appData 的每一天
       for (const [date, expenses] of Object.entries(appData)) {
-        // 如果日期開頭是這個月，就把明細丟進陣列裡
-        if (date.startsWith(currentYearMonth)) { 
-          expenses.forEach(exp => { allExpenses.push({ date: date, ...exp }); });
-        }
+        if (date.startsWith(currentYearMonth)) { expenses.forEach(exp => { allExpenses.push({ date: date, ...exp }); }); }
       }
-      
-      // 依照日期由大到小(由新到舊)重新排序
       allExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-      // 如果沒資料，顯示提示文字
-      if (allExpenses.length === 0) { listContainer.innerHTML = '<p class="loading-text">這個月還沒有記帳紀錄喔！</p>'; return; }
-      
-      // 迴圈：把每一筆明細變成卡片，塞進清單裡
+      if (allExpenses.length === 0) { listContainer.innerHTML = '<p class="loading-text">這個月沒有紀錄喔！</p>'; return; }
       allExpenses.forEach(item => { listContainer.appendChild(createExpenseCard(item)); });
     }
 
-    // === 5. 畫出圓餅圖 ===
     function renderChart() {
-      const categoryTotals = {}; // 準備一個空物件，統計各大類別的金額
+      const categoryTotals = {}; 
       const currentYearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-      
-      // 走訪並加總金額
       for (const [date, expenses] of Object.entries(appData)) {
         if (date.startsWith(currentYearMonth)) {
-          expenses.forEach(exp => {
-            if (exp.type === "支出") { 
-              // 如果類別已存在就累加，不存在就建立並給予初始值
-              categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.price; 
-            }
-          });
+          expenses.forEach(exp => { if (exp.type === "支出") { categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.price; } });
         }
       }
-      
-      // 把統計結果拆成標籤陣列 (labels) 和金額陣列 (data) 給 Chart.js 用
       const labels = Object.keys(categoryTotals), data = Object.values(categoryTotals);
       const ctx = document.getElementById('expenseChart').getContext('2d');
-      
-      // ⚠️ 如果畫布上已經有圖表，必須先銷毀，否則新舊圖表會重疊在一起
       if (myPieChart) { myPieChart.destroy(); }
-      
-      if (data.length === 0) return; // 沒資料就不畫圖
-      
-      // 召喚 Chart.js 畫圖
+      if (data.length === 0) return; 
       myPieChart = new Chart(ctx, { 
-        type: 'pie', // 指定圓餅圖
-        data: { 
-          labels: labels, 
-          datasets: [{ 
-            data: data, 
-            backgroundColor: ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#c2c2f0', '#ffb3e6'], // 給分類漂亮的顏色
-            borderWidth: 1 
-          }] 
-        }, 
+        type: 'pie', data: { labels: labels, datasets: [{ data: data, backgroundColor: ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#c2c2f0', '#ffb3e6'], borderWidth: 1 }] }, 
         options: { responsive: true, plugins: { legend: { position: 'bottom' } } } 
       });
     }
 
-    // === 6. 互動功能：滑動/點擊切換月份 ===
-    function changeMonth(offset) { 
-      currentDate.setMonth(currentDate.getMonth() + offset); 
-      renderCalendar(); renderList(); renderChart(); // 月份改變，三個畫面都要重畫
-    }
-    document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1)); // 點左箭頭：上個月
-    document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));  // 點右箭頭：下個月
-    
-    // 觸控滑動 (Swipe) 邏輯
+    function changeMonth(offset) { currentDate.setMonth(currentDate.getMonth() + offset); renderCalendar(); renderList(); renderChart(); }
+    document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1)); 
+    document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1)); 
     let startX = 0; 
     const swipeArea = document.getElementById('swipeArea');
-    swipeArea.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }); // 記錄手指按下的 X 座標
+    swipeArea.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, {passive: true}); 
     swipeArea.addEventListener('touchend', e => { 
-      const diffX = startX - e.changedTouches[0].clientX; // 計算手指離開時滑動的距離
-      if (Math.abs(diffX) > 50) { changeMonth(diffX > 0 ? 1 : -1); } // 距離大於 50px 才切換
+      const diffX = startX - e.changedTouches[0].clientX; 
+      if (Math.abs(diffX) > 50) { changeMonth(diffX > 0 ? 1 : -1); } 
     });
-
-    // === 7. 互動功能：底部導覽列切換畫面 ===
+    
     const navButtons = document.querySelectorAll('.bottom-nav button'), views = document.querySelectorAll('.view');
     navButtons.forEach(btn => {
       btn.addEventListener('click', () => {
-        // 先把所有按鈕和畫面的 active 標籤拔掉 (隱藏)
-        navButtons.forEach(b => b.classList.remove('active')); 
-        views.forEach(v => v.classList.remove('active'));
-        // 幫被點擊的按鈕和對應的畫面加上 active (顯示)
-        btn.classList.add('active'); 
-        document.getElementById(`view-${btn.id.split('-')[1]}`).classList.add('active');
+        navButtons.forEach(b => b.classList.remove('active')); views.forEach(v => v.classList.remove('active'));
+        btn.classList.add('active'); document.getElementById(`view-${btn.id.split('-')[1]}`).classList.add('active');
       });
     });
 
-    // === 8. 每日明細視窗邏輯 ===
     const dailyModal = document.getElementById('dailyModal');
-    let selectedDateForAdd = ''; // 暫存使用者點擊的是哪一天
-
-    // 開啟每日明細的函數
+    let selectedDateForAdd = ''; 
     function openDailyModal(dateString) {
-      selectedDateForAdd = dateString; // 記下來，方便等一下新增時直接帶入日期
-      document.getElementById('dailyTitle').innerText = dateString + ' 明細'; // 改標題
+      selectedDateForAdd = dateString; 
+      document.getElementById('dailyTitle').innerText = dateString + ' 明細'; 
       const container = document.getElementById('dailyExpenseList');
       container.innerHTML = '';
-      
-      // 如果當天有資料，就用迴圈產生卡片塞進去
       if (appData[dateString] && appData[dateString].length > 0) {
         appData[dateString].forEach(exp => { container.appendChild(createExpenseCard({ date: dateString, ...exp })); });
-      } else {
-        container.innerHTML = '<p class="loading-text">當天沒有紀錄喔！</p>';
-      }
-      dailyModal.classList.add('active'); // 顯示視窗
+      } else { container.innerHTML = '<p class="loading-text">當天沒有紀錄喔！</p>'; }
+      dailyModal.classList.add('active'); 
     }
-    document.getElementById('closeDailyBtn').addEventListener('click', () => dailyModal.classList.remove('active')); // 關閉按鈕
+    document.getElementById('closeDailyBtn').addEventListener('click', () => dailyModal.classList.remove('active')); 
+    document.getElementById('addFromDailyBtn').addEventListener('click', () => { dailyModal.classList.remove('active'); openAddForm(selectedDateForAdd); });
 
-    // 點擊每日明細裡面的「新增當日紀錄」
-    document.getElementById('addFromDailyBtn').addEventListener('click', () => {
-      dailyModal.classList.remove('active'); // 先把明細視窗關掉
-      openAddForm(selectedDateForAdd); // 打開新增表單，並把剛剛點的日期傳進去
-    });
-
-    // === 9. 表單操作邏輯 (切換為新增 或 切換為修改) ===
     const formModal = document.getElementById('formModal'), form = document.getElementById('expenseForm');
     const actionType = document.getElementById('actionType'), recordId = document.getElementById('recordId'), formTitle = document.getElementById('formTitle');
     const deleteBtn = document.getElementById('deleteBtn'), submitBtn = document.getElementById('submitBtn'), statusDiv = document.getElementById('status');
 
-    // 開啟「新增模式」表單
     function openAddForm(dateStr = null) {
-      form.reset(); // 清空輸入框
-      actionType.value = 'add'; // 告訴後台：我要新增
-      recordId.value = ''; // 新增沒有 ID
-      formTitle.innerText = '新增';
-      submitBtn.innerText = '確認';
-      deleteBtn.style.display = 'none'; // 新增模式不需要刪除按鈕，隱藏它
-      
-      // 日期預設帶入參數，或是今天
+      form.reset(); actionType.value = 'add'; recordId.value = ''; formTitle.innerText = '新增'; submitBtn.innerText = '確認'; deleteBtn.style.display = 'none'; 
       document.getElementById('date').value = dateStr || new Date().toISOString().split('T')[0];
-      
-      // 把分類選單上鎖，強迫使用者從第一層開始選
-      document.getElementById('category').disabled = true;
-      document.getElementById('item').disabled = true;
-      
-      formModal.classList.add('active'); // 顯示表單視窗
+      document.getElementById('category').disabled = true; document.getElementById('item').disabled = true;
+      formModal.classList.add('active'); 
     }
 
-    // 開啟「修改模式」表單
-    // 開啟「修改模式」表單
     function openEditForm(item) {
-      dailyModal.classList.remove('active'); 
-      form.reset();
-      actionType.value = 'edit'; 
-      recordId.value = item.id;  
-      formTitle.innerText = '修改紀錄';
-      submitBtn.innerText = '儲存';
-      deleteBtn.style.display = 'block'; 
-      
+      dailyModal.classList.remove('active'); form.reset(); actionType.value = 'edit'; recordId.value = item.id;  
+      formTitle.innerText = '修改紀錄'; submitBtn.innerText = '儲存'; deleteBtn.style.display = 'block'; 
       document.getElementById('date').value = item.date;
-      
-      // 🌟 修正：JavaScript 的 DOM 事件觸發是同步的，不需使用 setTimeout，直接賦值即可
-      document.getElementById('type').value = item.type;
-      document.getElementById('type').dispatchEvent(new Event('change')); // 觸發生成大類別
-      
-      document.getElementById('category').value = item.category;
-      document.getElementById('category').dispatchEvent(new Event('change')); // 觸發生成細項
-      
+      document.getElementById('type').value = item.type; document.getElementById('type').dispatchEvent(new Event('change')); 
+      document.getElementById('category').value = item.category; document.getElementById('category').dispatchEvent(new Event('change')); 
       document.getElementById('item').value = item.item;
-
-      document.getElementById('name').value = item.name;
-      document.getElementById('price').value = item.price;
-      document.getElementById('notes').value = item.notes || ''; 
-      
+      document.getElementById('name').value = item.name; document.getElementById('price').value = item.price; document.getElementById('notes').value = item.notes || ''; 
       formModal.classList.add('active');
     }
-
-    // 右下角綠色加號按鈕：直接打開新增模式
     document.getElementById('openFormBtn').addEventListener('click', () => openAddForm());
     document.getElementById('closeFormBtn').addEventListener('click', () => formModal.classList.remove('active'));
 
-    // === 10. 表單分類連動選單邏輯 (第一版的靈魂) ===
-    const categoryData = { "支出": { "餐飲": ["早餐", "午餐", "晚餐", "飲料", "點心", "宵夜", "其他"],
-                                    "交通": ["加油", "機油", "保養維修", "停車費", "火車", "公車/捷運", "計程車", "其他"], 
-                                    "生活": ["洗衣服", "日用品", "規費/帳單", "其他"], 
-                                    "購物": ["服飾", "電子產品", "亂買", "其他"],
-                                    "娛樂": ["電影", "運動", "展覽", "遊戲", "訂閱服務", "其他"],
-                                    "醫療": ["看醫生", "健康檢查", "藥/保健食品", "其他"],
-                                    "學習": ["課本", "課程", "考試/檢定", "其他"],
-                                    "投資": ["股票", "其他"],
-                                    "其他": ["其他"] }, 
-                           "收入": { "工作": ["本薪", "獎金", "加班費", "其他"], 
-                                    "投資": ["股息", "利息", "其他"],
-                                    "其他": ["其他"] } 
-                          };
+    const categoryData = { "支出": { "餐飲": ["早餐", "午餐", "晚餐", "飲料", "點心", "宵夜", "其他"], "交通": ["加油", "機油", "保養維修", "停車費", "火車", "公車/捷運", "計程車", "其他"], "生活": ["洗衣服", "日用品", "規費/帳單", "其他"], "購物": ["服飾", "電子產品", "亂買", "其他"], "娛樂": ["電影", "運動", "展覽", "遊戲", "訂閱服務", "其他"], "醫療": ["看醫生", "健康檢查", "藥/保健食品", "其他"], "學習": ["課本", "課程", "考試/檢定", "其他"], "投資": ["股票", "其他"], "其他": ["其他"] }, "收入": { "工作": ["本薪", "獎金", "加班費", "其他"], "投資": ["股息", "利息", "其他"], "其他": ["其他"] } };
     const typeSelect = document.getElementById('type'), categorySelect = document.getElementById('category'), itemSelect = document.getElementById('item');
-    
-    // 當收支類別改變時
     typeSelect.addEventListener('change', function() { 
-      categorySelect.innerHTML = '<option value="" disabled selected>請選擇類別...</option>'; 
-      itemSelect.innerHTML = '<option value="" disabled selected>請先選擇類別</option>'; 
-      itemSelect.disabled = true; 
-      // 動態塞入對應的大類別選項
+      categorySelect.innerHTML = '<option value="" disabled selected>請選擇類別...</option>'; itemSelect.innerHTML = '<option value="" disabled selected>請先選擇類別</option>'; itemSelect.disabled = true; 
       if (this.value) { categorySelect.disabled = false; Object.keys(categoryData[this.value]).forEach(cat => categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`); } 
     });
-    
-    // 當大類別改變時
     categorySelect.addEventListener('change', function() { 
       itemSelect.innerHTML = '<option value="" disabled selected>請選擇細項...</option>'; 
-      // 動態塞入對應的次項目選項
       if (this.value) { itemSelect.disabled = false; categoryData[typeSelect.value][this.value].forEach(item => itemSelect.innerHTML += `<option value="${item}">${item}</option>`); } 
     });
 
-    // === 11. 核心傳送函數：送出資料給 Google ===
+    // 核心傳送函數 (離線支援)
     function processFormData(formDataObject) {
-      // 防呆：如果網址沒填，跳出警告
       if (!scriptURL.startsWith('http')) { alert('請檢查 GAS 網址！'); return; }
-      
-      // 傳送中，把按鈕鎖起來防止連點
       submitBtn.disabled = true; deleteBtn.disabled = true;
-      submitBtn.innerText = '雲端處理中...'; statusDiv.innerText = '';
 
-      // 透過 fetch 向 Google 發送 POST 請求 (對應到後台的 doPost)
-      fetch(scriptURL, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 宣告成純文字繞過 CORS 阻擋
-        body: JSON.stringify(formDataObject) // 將表單資料轉成 JSON 字串送出
-      })
+      if (!navigator.onLine) {
+        statusDiv.innerText = '📶 目前離線，資料已暫存手機！連線後將自動上傳。'; 
+        statusDiv.style.color = '#e6a23c';
+        let queue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+        queue.push(formDataObject);
+        localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+        setTimeout(() => { 
+          formModal.classList.remove('active'); 
+          submitBtn.disabled = false; deleteBtn.disabled = false; statusDiv.innerText = '';
+        }, 1500); 
+        return; 
+      }
+
+      submitBtn.innerText = '雲端處理中...'; statusDiv.innerText = '';
+      fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(formDataObject) })
       .then(r => r.json())
       .then(res => {
-        // 🌟 修正：判斷 GAS 是否有回傳 error 屬性
         if (res.error) {
-          statusDiv.innerText = '❌ 處理失敗：' + res.error; 
-          statusDiv.style.color = 'red';
-          submitBtn.disabled = false; deleteBtn.disabled = false; 
-          submitBtn.innerText = '重新送出';
+          statusDiv.innerText = '❌ 失敗：' + res.error; statusDiv.style.color = 'red'; submitBtn.disabled = false; deleteBtn.disabled = false; submitBtn.innerText = '重新送出';
         } else {
-          // 成功後的處理
-          statusDiv.innerText = '✅ 處理成功！'; statusDiv.style.color = 'green';
-          fetchData(); 
-          setTimeout(() => { 
-            statusDiv.innerText = ''; 
-            formModal.classList.remove('active'); 
-            submitBtn.disabled = false; deleteBtn.disabled = false; 
-          }, 1000); 
+          statusDiv.innerText = '✅ 處理成功！'; statusDiv.style.color = 'green'; fetchData(); 
+          setTimeout(() => { statusDiv.innerText = ''; formModal.classList.remove('active'); submitBtn.disabled = false; deleteBtn.disabled = false; }, 1000); 
         }
       })
       .catch(e => { 
-        // 失敗後的處理
-        statusDiv.innerText = '❌ 處理失敗。'; statusDiv.style.color = 'red'; 
-        submitBtn.disabled = false; deleteBtn.disabled = false; submitBtn.innerText = '重新送出'; 
+        statusDiv.innerText = '❌ 網路異常。'; statusDiv.style.color = 'red'; submitBtn.disabled = false; deleteBtn.disabled = false; submitBtn.innerText = '重新送出'; 
       });
     }
 
-    // 監聽表單的 Submit (送出) 行為
-    form.addEventListener('submit', e => {
-      e.preventDefault(); // 阻止網頁預設的重新整理
-      // 把表單資料打包成物件，傳給傳送函數
-      processFormData(Object.fromEntries(new FormData(form).entries()));
-    });
-
-    // 監聽「刪除按鈕」被點擊的行為
+    form.addEventListener('submit', e => { e.preventDefault(); processFormData(Object.fromEntries(new FormData(form).entries())); });
     deleteBtn.addEventListener('click', () => {
-      // confirm: 彈出原生的警告視窗，使用者按「確定」才會回傳 true
-      if(confirm('🚨 確定要刪除這筆紀錄嗎？刪除後無法恢復喔！')) {
-        const data = Object.fromEntries(new FormData(form).entries());
-        data.action = 'delete'; // ✨ 偷天換日：強制把包裹裡的動作標籤改成 delete
-        processFormData(data); // 送給後台
+      if(confirm('🚨 確定要刪除這筆紀錄嗎？')) {
+        const data = Object.fromEntries(new FormData(form).entries()); data.action = 'delete'; processFormData(data); 
       }
     });
 
-    // === 12. 網頁啟動引擎 ===
-    // 網頁一讀取到這裡，就自動執行 fetchData() 展開這一切的運作！
-    fetchData();
+    // 自動同步離線資料引擎
+    function syncOfflineData() {
+      if (isSyncing) return; 
+      
+      let queue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+      if (queue.length === 0) return; 
+      
+      isSyncing = true; 
+      let currentData = queue[0];
+      
+      fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(currentData) })
+      .then(r => r.json())
+      .then(res => {
+        if(!res.error) {
+          let freshQueue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+          freshQueue.shift(); 
+          localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(freshQueue));
+          isSyncing = false; 
+          
+          if (freshQueue.length > 0) {
+            syncOfflineData(); 
+          } else {
+            alert('🔄 您先前在離線狀態下的紀錄，已成功同步至雲端！');
+            fetchData(); 
+          }
+        } else {
+          isSyncing = false;
+        }
+      })
+      .catch(e => { isSyncing = false; });
+    }
 
-    // === 13. 註冊 Service Worker (PWA 必備) ===
+    window.addEventListener('online', syncOfflineData);
+
+    // 啟動引擎
+    fetchData(); 
+    syncOfflineData(); 
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-          .then(registration => console.log('ServiceWorker 註冊成功'))
-          .catch(err => console.log('ServiceWorker 註冊失敗: ', err));
+          .then(registration => console.log('SW 註冊成功'))
+          .catch(err => console.log('SW 失敗: ', err));
       });
     }
-
   </script>
 </body>
 </html>
