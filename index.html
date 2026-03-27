@@ -1,6 +1,6 @@
 
 <!-- ================== -->
-<!-- ===== ver1.2 ===== -->
+<!-- ===== ver1.3 ===== -->
 <!-- ================== -->
 
 <!DOCTYPE html>
@@ -29,7 +29,18 @@
     .calendar-day { border: 1px solid #eee; border-radius: 6px; padding: 5px; display: flex; flex-direction: column; cursor: pointer; }
     .calendar-day:active { background-color: #f0f0f0; } 
     .calendar-day .date-num { font-size: 14px; color: #333; } 
-    .calendar-day .expense-tag { background: #ffebee; color: #d32f2f; font-size: 12px; padding: 2px 4px; border-radius: 4px; margin-top: 4px; display: inline-block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } 
+    .calendar-day .expense-tag {
+      background: #ffebee;
+      color: #d32f2f;
+      font-size: 11px; /* 稍微調小字體，容納更多字 */
+      padding: 2px 4px;
+      border-radius: 4px;
+      margin-top: 2px;
+      display: block; /* 改成 block 讓多筆支出由上而下排列 */
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; /* 名稱太長會自動變 ... */
+    }
     .calendar-day.empty { background: #fafafa; border: none; cursor: default; } 
     .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
     .list-item:active { background-color: #f9f9f9; }
@@ -56,10 +67,36 @@
     .delete-btn { width: 35%; padding: 12px; background-color: #dc3545; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; display: none; } 
     #status { text-align: center; margin-top: 15px; font-weight: bold; }
     .loading-text { text-align: center; color: #888; margin-top: 20px; font-weight: bold; }
+
+    /* [網路狀態橫幅] 固定在畫面最上方 */
+    .network-status {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      padding: env(safe-area-inset-top) 0 10px 0; /* 避開頂部瀏海 */
+      font-size: 14px;
+      font-weight: bold;
+      color: white;
+      z-index: 1000;
+      transform: translateY(-100%); /* 預設往上推，藏在畫面外 */
+      transition: transform 0.3s ease-in-out; /* 滑順的彈出動畫 */
+    }
+    .network-status.show {
+      transform: translateY(0); /* 顯示時往下拉 */
+    }
+    .network-status.offline {
+      background-color: #dc3545; /* 離線顯示紅色 */
+    }
+    .network-status.online {
+      background-color: #28a745; /* 連線顯示綠色 */
+    }
   </style>
 </head>
 <body>
 
+  <div id="networkStatus" class="network-status"></div>
   <header>
     <button id="prevMonth">◀</button>
     <h2 id="monthTitle">載入中...</h2>
@@ -125,7 +162,8 @@
   </div>
 
   <script>
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbxr74urGnLv2RdRAjm2KzcHp35bh1m5wNyz4ErGeWwu20CH5hI-a-s930Tn2-G0OfIk/exec'; 
+    // AppScript URL
+    const scriptURL = 'https://script.google.com/macros/s/AKfycby1fVLEdV4MexxCzF6gRTs2d6b5w9jmxR9aFoMuRWq0g83YWQ8FNTwMTNWRyI8yhKKD/exec'; 
 
     let currentDate = new Date(); 
     const monthTitle = document.getElementById('monthTitle');
@@ -171,7 +209,11 @@
         const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
         let expensesHtml = ''; 
         if (appData[dateString]) {
-          appData[dateString].forEach(exp => { if(exp.type === "支出") expensesHtml += `<div class="expense-tag">$${exp.price}</div>`; });
+          appData[dateString].forEach(exp => { 
+            if(exp.type === "支出") {
+              expensesHtml += `<div class="expense-tag">${exp.name} $${exp.price}</div>`; 
+            }
+          });
         }
         const dayDiv = document.createElement('div');
         dayDiv.className = 'calendar-day';
@@ -245,7 +287,7 @@
     let selectedDateForAdd = ''; 
     function openDailyModal(dateString) {
       selectedDateForAdd = dateString; 
-      document.getElementById('dailyTitle').innerText = dateString + ' 明細'; 
+      document.getElementById('dailyTitle').innerText = dateString; 
       const container = document.getElementById('dailyExpenseList');
       container.innerHTML = '';
       if (appData[dateString] && appData[dateString].length > 0) {
@@ -255,6 +297,11 @@
     }
     document.getElementById('closeDailyBtn').addEventListener('click', () => dailyModal.classList.remove('active')); 
     document.getElementById('addFromDailyBtn').addEventListener('click', () => { dailyModal.classList.remove('active'); openAddForm(selectedDateForAdd); });
+    dailyModal.addEventListener('click', function(e) {
+      if (e.target === dailyModal) {
+        dailyModal.classList.remove('active');
+      }
+    });
 
     const formModal = document.getElementById('formModal'), form = document.getElementById('expenseForm');
     const actionType = document.getElementById('actionType'), recordId = document.getElementById('recordId'), formTitle = document.getElementById('formTitle');
@@ -279,6 +326,11 @@
     }
     document.getElementById('openFormBtn').addEventListener('click', () => openAddForm());
     document.getElementById('closeFormBtn').addEventListener('click', () => formModal.classList.remove('active'));
+    formModal.addEventListener('click', function(e) {
+      if (e.target === formModal) {
+        formModal.classList.remove('active');
+      }
+    });
 
     const categoryData = { "支出": { "餐飲": ["早餐", "午餐", "晚餐", "飲料", "點心", "宵夜", "其他"], "交通": ["加油", "機油", "保養維修", "停車費", "火車", "公車/捷運", "計程車", "其他"], "生活": ["洗衣服", "日用品", "規費/帳單", "其他"], "購物": ["服飾", "電子產品", "亂買", "其他"], "娛樂": ["電影", "運動", "展覽", "遊戲", "訂閱服務", "其他"], "醫療": ["看醫生", "健康檢查", "藥/保健食品", "其他"], "學習": ["課本", "課程", "考試/檢定", "其他"], "投資": ["股票", "其他"], "其他": ["其他"] }, "收入": { "工作": ["本薪", "獎金", "加班費", "其他"], "投資": ["股息", "利息", "其他"], "其他": ["其他"] } };
     const typeSelect = document.getElementById('type'), categorySelect = document.getElementById('category'), itemSelect = document.getElementById('item');
@@ -364,8 +416,6 @@
       .catch(e => { isSyncing = false; });
     }
 
-    window.addEventListener('online', syncOfflineData);
-
     // 啟動引擎
     fetchData(); 
     syncOfflineData(); 
@@ -376,6 +426,42 @@
           .then(registration => console.log('SW 註冊成功'))
           .catch(err => console.log('SW 失敗: ', err));
       });
+    }
+
+    // === 🌟 新增：即時網路狀態偵測引擎 ===
+    const networkStatus = document.getElementById('networkStatus');
+
+    function updateNetworkUI(isOnline) {
+      if (isOnline) {
+        // 連線時的狀態
+        networkStatus.textContent = '✅ 已重新連線，正在同步資料...';
+        networkStatus.className = 'network-status online show';
+        
+        // 顯示 3 秒後自動往上收合隱藏
+        setTimeout(() => {
+          networkStatus.classList.remove('show');
+        }, 3000);
+      } else {
+        // 斷線時的狀態
+        networkStatus.textContent = '⚠️ 目前離線中，資料將暫存於手機';
+        networkStatus.className = 'network-status offline show';
+        // 離線時不隱藏，一直顯示直到重新連線
+      }
+    }
+
+    // 監聽手機系統的網路切換事件
+    window.addEventListener('online', () => {
+      updateNetworkUI(true);
+      syncOfflineData(); // 連線時，除了改畫面，也順便呼叫我們原本寫好的同步函數！
+    });
+    
+    window.addEventListener('offline', () => {
+      updateNetworkUI(false);
+    });
+
+    // 網頁剛打開時，主動檢查一次目前是不是離線
+    if (!navigator.onLine) {
+      updateNetworkUI(false);
     }
   </script>
 </body>
