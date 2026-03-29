@@ -1,6 +1,6 @@
 
 <!-- ================== -->
-<!-- ===== ver1.3 ===== -->
+<!-- ===== ver1.4 ===== -->
 <!-- ================== -->
 
 <!DOCTYPE html>
@@ -15,6 +15,7 @@
   <title>記帳</title>
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
@@ -114,7 +115,7 @@
     </div>
     
     <div id="view-chart" class="view">
-      <h3 style="text-align: center; color: #555;">大類別花費比例</h3>
+      <h3 style="text-align: center; color: #555;">各類別花費比例</h3>
       <canvas id="expenseChart" width="100" height="100"></canvas>
     </div>
   </div>
@@ -178,18 +179,23 @@
 
     // 1. 抓取資料
     function fetchData() {
-      fetch(scriptURL)
+      // 🌟 必殺技：產生當下時間戳記，附加在網址後面，強迫 PWA 認為這是一個全新的請求
+      const timestamp = new Date().getTime();
+      const noCacheUrl = scriptURL + '?t=' + timestamp;
+
+      // 🌟 使用新網址，並加上 cache: 'no-store' 雙重防護
+      fetch(noCacheUrl, { cache: 'no-store' })
         .then(response => response.json()) 
-        .then(data => {
+         .then(data => {
           appData = data; 
           localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(appData));
-          renderCalendar(); renderList(); renderChart();   
+          renderCalendar(); renderList(); renderChart();   
         })
         .catch(error => {
-          const cachedData = localStorage.getItem(DATA_CACHE_KEY);
-          if (cachedData) {
-            appData = JSON.parse(cachedData);
-            calendarGrid.innerHTML = '<div class="loading-text" style="color:#e6a23c;">⚠️ 目前離線，顯示備份資料</div>';
+        const cachedData = localStorage.getItem(DATA_CACHE_KEY);
+        if (cachedData) {
+        appData = JSON.parse(cachedData);
+        calendarGrid.innerHTML = '<div class="loading-text" style="color:#e6a23c;">⚠️ 目前離線，顯示備份資料</div>';
             setTimeout(() => { renderCalendar(); renderList(); renderChart(); }, 1000);
           } else {
             calendarGrid.innerHTML = '<div class="loading-text" style="color:red;">無法連線，且無備份資料</div>';
@@ -247,22 +253,111 @@
     }
 
     function renderChart() {
-      const categoryTotals = {}; 
-      const currentYearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-      for (const [date, expenses] of Object.entries(appData)) {
-        if (date.startsWith(currentYearMonth)) {
-          expenses.forEach(exp => { if (exp.type === "支出") { categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.price; } });
+      const categoryTotals = {}; 
+      const currentYearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      for (const [date, expenses] of Object.entries(appData)) {
+        if (date.startsWith(currentYearMonth)) {
+          expenses.forEach(exp => { 
+            if (exp.type === "支出") { 
+              categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.price; 
+            } 
+          });
+        }
+      }
+
+      // 🌟 1. 將資料轉換成陣列，並依照金額「由大到小」排序
+      const sortedCategories = Object.keys(categoryTotals)
+        .map(key => ({
+          label: key,
+          value: categoryTotals[key]
+        }))
+        .sort((a, b) => b.value - a.value); 
+
+      const labels = sortedCategories.map(item => item.label);
+      const data = sortedCategories.map(item => item.value);
+
+      // 統一的馬卡龍色系
+      const bgColors = ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#c2c2f0', '#ffb3e6', '#ffb3b3', '#cce6ff'];
+
+      const ctx = document.getElementById('expenseChart').getContext('2d');
+      if (myPieChart) { myPieChart.destroy(); }
+      
+      // 取得我們自訂的圖例區塊 (如果沒有就自動建立一個)
+      let customLegendDiv = document.getElementById('customLegend');
+      if (!customLegendDiv) {
+        customLegendDiv = document.createElement('div');
+        customLegendDiv.id = 'customLegend';
+        // 把它安插在圓餅圖的正下方
+        document.getElementById('expenseChart').insertAdjacentElement('afterend', customLegendDiv);
+      }
+
+      // 如果這個月沒資料，清空圖表和圖例
+      if (data.length === 0) { 
+        customLegendDiv.innerHTML = '';
+        return; 
+      } 
+
+      // 🌟 2. 建立圓餅圖
+      myPieChart = new Chart(ctx, { 
+        type: 'pie', 
+        data: { 
+          labels: labels, 
+          datasets: [{ 
+            data: data, 
+            backgroundColor: bgColors.slice(0, data.length), 
+            borderWidth: 1 
+          }] 
+        },
+        plugins: [ChartDataLabels],
+        options: { 
+          responsive: true, 
+          // 🌟 加入 onClick 事件：點擊圓餅圖時觸發
+          
+          plugins: { 
+            legend: { display: false },
+            datalabels: { 
+              color: '#333', 
+              font: { weight: 'bold', size: 14 },
+              textAlign: 'center',
+              display: function(context) {
+                const dataArray = context.dataset.data;
+                const total = dataArray.reduce((acc, current) => acc + current, 0);
+                const value = dataArray[context.dataIndex];
+                return (value / total) >= 0.15; // 小於 15% 不顯示
+              },
+              formatter: function(value, context) {
+                let categoryName = context.chart.data.labels[context.dataIndex];
+                return categoryName + '\n$' + value;
+              }
+            }
+          } 
         }
-      }
-      const labels = Object.keys(categoryTotals), data = Object.values(categoryTotals);
-      const ctx = document.getElementById('expenseChart').getContext('2d');
-      if (myPieChart) { myPieChart.destroy(); }
-      if (data.length === 0) return; 
-      myPieChart = new Chart(ctx, { 
-        type: 'pie', data: { labels: labels, datasets: [{ data: data, backgroundColor: ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#c2c2f0', '#ffb3e6'], borderWidth: 1 }] }, 
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } } 
-      });
-    }
+      });
+
+      // 🌟 3. 自動生成「由大到小」的直列式圖例
+      const totalAmount = data.reduce((sum, val) => sum + val, 0);
+      
+      let legendHtml = '<div style="display: flex; flex-direction: column; margin-top: 15px; width: 90%; max-width: 280px; margin-left: auto; margin-right: auto; padding-bottom: 20px;">';
+      
+      sortedCategories.forEach((item, index) => {
+        const color = bgColors[index % bgColors.length];
+        const percentage = Math.round((item.value / totalAmount) * 100);
+        
+        legendHtml += `
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 14px; color: #444; padding: 1px 0;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 28px; height: 12px; background-color: ${color}; border-radius: 2px; flex-shrink: 0;"></div>
+              <span style="white-space: nowrap;">${item.label} (${percentage}%)</span>
+            </div>
+            <span style="font-weight: bold; flex-shrink: 0;">$${item.value}</span>
+          </div>
+        `;
+      });
+      legendHtml += '</div>';
+      
+      customLegendDiv.innerHTML = legendHtml;
+    }
 
     function changeMonth(offset) { currentDate.setMonth(currentDate.getMonth() + offset); renderCalendar(); renderList(); renderChart(); }
     document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1)); 
@@ -343,13 +438,14 @@
       if (this.value) { itemSelect.disabled = false; categoryData[typeSelect.value][this.value].forEach(item => itemSelect.innerHTML += `<option value="${item}">${item}</option>`); } 
     });
 
-    // 核心傳送函數 (離線支援)
+    // 核心傳送函數 (離線支援 + 假性連線防護)
     function processFormData(formDataObject) {
       if (!scriptURL.startsWith('http')) { alert('請檢查 GAS 網址！'); return; }
       submitBtn.disabled = true; deleteBtn.disabled = true;
 
-      if (!navigator.onLine) {
-        statusDiv.innerText = '📶 目前離線，資料已暫存手機！連線後將自動上傳。'; 
+      // 🌟 1. 建立「存入離線佇列」的共用函數
+      const saveToOfflineQueue = () => {
+        statusDiv.innerText = '📶 網路不穩或離線，資料已暫存手機！連線後將自動上傳。'; 
         statusDiv.style.color = '#e6a23c';
         let queue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
         queue.push(formDataObject);
@@ -358,13 +454,30 @@
           formModal.classList.remove('active'); 
           submitBtn.disabled = false; deleteBtn.disabled = false; statusDiv.innerText = '';
         }, 1500); 
+      };
+
+      // 情況 A：系統明確顯示無網路 (飛航模式、無訊號)
+      if (!navigator.onLine) {
+        saveToOfflineQueue();
         return; 
       }
 
       submitBtn.innerText = '雲端處理中...'; statusDiv.innerText = '';
-      fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(formDataObject) })
+
+      // 🌟 2. 加入 Timeout 機制 (設定 8 秒超時)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      // 情況 B：嘗試連線 (處理假性連線 Lie-fi)
+      fetch(scriptURL, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+        body: JSON.stringify(formDataObject),
+        signal: controller.signal // 綁定 AbortController
+      })
       .then(r => r.json())
       .then(res => {
+        clearTimeout(timeoutId); // 成功收到回應，解除計時器
         if (res.error) {
           statusDiv.innerText = '❌ 失敗：' + res.error; statusDiv.style.color = 'red'; submitBtn.disabled = false; deleteBtn.disabled = false; submitBtn.innerText = '重新送出';
         } else {
@@ -373,7 +486,11 @@
         }
       })
       .catch(e => { 
-        statusDiv.innerText = '❌ 網路異常。'; statusDiv.style.color = 'red'; submitBtn.disabled = false; deleteBtn.disabled = false; submitBtn.innerText = '重新送出'; 
+        clearTimeout(timeoutId); // 發生錯誤或 Timeout，解除計時器
+        
+        // 🌟 3. 關鍵修復：無論是 Timeout 還是真的斷線，都直接存入離線佇列
+        console.warn('連線失敗或逾時，轉為離線儲存:', e);
+        saveToOfflineQueue(); 
       });
     }
 
@@ -384,7 +501,7 @@
       }
     });
 
-    // 自動同步離線資料引擎
+    // 自動同步離線資料引擎 (極端情況強化版)
     function syncOfflineData() {
       if (isSyncing) return; 
       
@@ -394,26 +511,59 @@
       isSyncing = true; 
       let currentData = queue[0];
       
-      fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(currentData) })
+      // 🛡️ 防護 1：加入 Timeout 防護 (針對背景同步的假性連線)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      fetch(scriptURL, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+        body: JSON.stringify(currentData),
+        signal: controller.signal // 綁定超時控制器
+      })
       .then(r => r.json())
       .then(res => {
+        clearTimeout(timeoutId);
+        
+        // 確保抓取當下最新的 Queue 狀態
+        let freshQueue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+        
         if(!res.error) {
-          let freshQueue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+          // ✅ 成功：移除第一筆
           freshQueue.shift(); 
           localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(freshQueue));
           isSyncing = false; 
           
           if (freshQueue.length > 0) {
-            syncOfflineData(); 
+            syncOfflineData(); // 繼續同步下一筆
           } else {
             alert('🔄 您先前在離線狀態下的紀錄，已成功同步至雲端！');
             fetchData(); 
           }
         } else {
+          // 🛡️ 防護 2：伺服器明確拒絕這筆資料 (遇到毒藥資料)
+          console.error('這筆離線資料被伺服器拒絕：', res.error, currentData);
+          
+          // 必須將這筆錯誤資料移除，否則會永久卡住佇列！
+          freshQueue.shift(); 
+          localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(freshQueue));
           isSyncing = false;
+          
+          alert(`⚠️ 有一筆離線紀錄同步失敗，已略過。\n原因: ${res.error}\n請稍後手動補登。`);
+          
+          // 放棄有問題的這筆，繼續同步後面健康的資料
+          if (freshQueue.length > 0) {
+            syncOfflineData(); 
+          }
         }
       })
-      .catch(e => { isSyncing = false; });
+      .catch(e => { 
+        // 🛡️ 網路異常或 Timeout (假性連線)
+        clearTimeout(timeoutId);
+        console.warn('背景同步遇到網路異常，暫停同步，保留佇列等下次網路好再試：', e);
+        isSyncing = false; 
+        // ⚠️ 注意：這裡不呼叫 shift()，因為是網路問題，不是資料本身有錯，保留資料下次重試
+      });
     }
 
     // 啟動引擎
