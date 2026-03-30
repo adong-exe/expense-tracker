@@ -1,6 +1,6 @@
 
 <!-- ================== -->
-<!-- ===== ver1.4 ===== -->
+<!-- ===== ver1.5 ===== -->
 <!-- ================== -->
 
 <!DOCTYPE html>
@@ -292,11 +292,24 @@
         document.getElementById('expenseChart').insertAdjacentElement('afterend', customLegendDiv);
       }
 
-      // 如果這個月沒資料，清空圖表和圖例
-      if (data.length === 0) { 
-        customLegendDiv.innerHTML = '';
-        return; 
-      } 
+      // 如果這個月沒資料，清空圖表和圖例，並顯示「無資料」提示
+      if (data.length === 0) { 
+        // 1. 確保 Canvas 畫布被徹底清空，不會殘留上個月的圖形
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        
+        // 2. 在原本圖例的區塊顯示「無資料」的提示訊息
+        customLegendDiv.innerHTML = `
+          <div style="text-align: center; color: #888; padding: 40px 0; font-weight: bold; font-size: 16px;">
+            📭 這個月目前沒有支出資料喔！
+          </div>
+        `;
+        
+        // 3. 確保上方標題恢復預設 (避免殘留上個月的總金額)
+        const chartTitle = document.querySelector('#view-chart h3');
+        if (chartTitle) chartTitle.innerHTML = '各類別花費比例';
+        
+        return; 
+      }
 
       // 🌟 2. 建立圓餅圖
       myPieChart = new Chart(ctx, { 
@@ -309,7 +322,7 @@
             borderWidth: 1 
           }] 
         },
-        plugins: [ChartDataLabels],
+        plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : [],
         options: { 
           responsive: true, 
           // 🌟 加入 onClick 事件：點擊圓餅圖時觸發
@@ -336,25 +349,27 @@
       });
 
       // 🌟 3. 自動生成「由大到小」的直列式圖例
-      const totalAmount = data.reduce((sum, val) => sum + val, 0);
-      
-      let legendHtml = '<div style="display: flex; flex-direction: column; margin-top: 15px; width: 90%; max-width: 280px; margin-left: auto; margin-right: auto; padding-bottom: 20px;">';
-      
-      sortedCategories.forEach((item, index) => {
-        const color = bgColors[index % bgColors.length];
-        const percentage = Math.round((item.value / totalAmount) * 100);
-        
-        legendHtml += `
-          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 14px; color: #444; padding: 1px 0;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="width: 28px; height: 12px; background-color: ${color}; border-radius: 2px; flex-shrink: 0;"></div>
-              <span style="white-space: nowrap;">${item.label} (${percentage}%)</span>
-            </div>
-            <span style="font-weight: bold; flex-shrink: 0;">$${item.value}</span>
-          </div>
-        `;
-      });
-      legendHtml += '</div>';
+      const totalAmount = data.reduce((sum, val) => sum + val, 0);
+      
+      // ✅ 修改點 1：在外層容器加入 gap: 8px 來統一控制行距
+      let legendHtml = '<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; width: 90%; max-width: 280px; margin-left: auto; margin-right: auto; padding-bottom: 20px;">';
+      
+      sortedCategories.forEach((item, index) => {
+        const color = bgColors[index % bgColors.length];
+        const percentage = Math.round((item.value / totalAmount) * 100);
+        
+        // ✅ 修改點 2：微調 padding (改為 2px 0)，讓項目本身更緊湊
+        legendHtml += `
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 14px; color: #444; padding: 2px 0;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 28px; height: 12px; background-color: ${color}; border-radius: 2px; flex-shrink: 0;"></div>
+              <span style="white-space: nowrap;">${item.label} (${percentage}%)</span>
+            </div>
+            <span style="font-weight: bold; flex-shrink: 0;">$${item.value}</span>
+          </div>
+        `;
+      });
+      legendHtml += '</div>';
       
       customLegendDiv.innerHTML = legendHtml;
     }
@@ -570,11 +585,23 @@
     fetchData(); 
     syncOfflineData(); 
 
+    // === Service Worker 註冊與自動更新機制 ===
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
           .then(registration => console.log('SW 註冊成功'))
           .catch(err => console.log('SW 失敗: ', err));
+      });
+
+      // 🌟 終極殺手鐧：監聽 Service Worker 的控制權轉移
+      // 當新版本的 sw.js 安裝並強制接管 (clients.claim) 時，自動幫使用者重整一次網頁
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          console.log('🔄 偵測到新版本，自動重整畫面...');
+          window.location.reload();
+          refreshing = true;
+        }
       });
     }
 
