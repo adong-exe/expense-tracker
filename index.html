@@ -1,6 +1,6 @@
 
 <!-- ================== -->
-<!-- ===== ver1.5 ===== -->
+<!-- ===== ver1.6 ===== -->
 <!-- ================== -->
 
 <!DOCTYPE html>
@@ -19,43 +19,125 @@
   
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-    header { display: flex; justify-content: space-between; align-items: center; padding: calc(15px + env(safe-area-inset-top)) 20px 15px 20px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 10; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: calc(15px + env(safe-area-inset-top)) 20px 15px 20px; background: #faf9f8; box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 10; }
     header button { background: none; border: none; font-size: 24px; cursor: pointer; color: #555; padding: 0 15px; }
     header h2 { margin: 0; font-size: 20px; color: #333; }
-    .view-container { flex: 1; overflow-y: auto; position: relative; background: #fff; margin: 10px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    
+    /* 1. 移除外層容器的邊距與圓角，讓畫面貼齊邊緣 */
+    .view-container { flex: 1; overflow-y: auto; position: relative; background: #fff; margin: 0; }
     .view { display: none; padding: 15px; height: 100%; box-sizing: border-box; }
+    #view-calendar { padding: 0; } /* 日曆專屬：移除內距，徹底貼齊螢幕 */
     .view.active { display: block; }
-    .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: bold; color: #888; margin-bottom: 10px; font-size: 14px; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(70px, auto); gap: 5px; }
-    .calendar-day { border: 1px solid #eee; border-radius: 6px; padding: 5px; display: flex; flex-direction: column; cursor: pointer; }
+    
+    /* 2. 星期列微調：加上底線並設定上下間距 */
+    .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: bold; color: #888; padding: 10px 0; margin: 0; border-bottom: 1px solid #eee; font-size: 14px; background: #fff; }
+    
+    /* 3. 關鍵：使用 minmax(0, 1fr) 強制等寬，並將 gap 設為 0 */
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(75px, auto); gap: 0; }
+    
+    /* 4. 格子改為表格樣式的單邊邊框，移除圓角，並加入 overflow: hidden 防撐破 */
+    .calendar-day { border-right: 1px solid #eee; border-bottom: 1px solid #eee; padding: 2px 4px; display: flex; flex-direction: column; cursor: pointer; overflow: hidden; box-sizing: border-box; }
     .calendar-day:active { background-color: #f0f0f0; } 
-    .calendar-day .date-num { font-size: 14px; color: #333; } 
+    .calendar-day .date-num { font-size: 14px; color: #333; margin-bottom: 2px; } 
+    
+    /* 5. 標籤顏色與樣式調整，更接近你右圖的視覺效果 */
     .calendar-day .expense-tag {
-      background: #ffebee;
-      color: #d32f2f;
-      font-size: 11px; /* 稍微調小字體，容納更多字 */
-      padding: 2px 4px;
-      border-radius: 4px;
+      color: #555; /* 🌟 配合馬卡龍底色，文字改為深灰色 */
+      font-size: 10px;
+      padding: 2px;
+      border-radius: 2px;
       margin-top: 2px;
-      display: block; /* 改成 block 讓多筆支出由上而下排列 */
+      display: block;
       white-space: nowrap; 
       overflow: hidden; 
-      text-overflow: ellipsis; /* 名稱太長會自動變 ... */
+      text-overflow: ellipsis;
+      text-align: center; /* 標籤文字置中 */
     }
-    .calendar-day.empty { background: #fafafa; border: none; cursor: default; } 
-    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
-    .list-item:active { background-color: #f9f9f9; }
-    .list-item:last-child { border-bottom: none; }
+    
+    /* 空白格子的邊框也要對齊 */
+    .calendar-day.empty { background: #fafafa; border-right: 1px solid #eee; border-bottom: 1px solid #eee; cursor: default; }
+    
+    /* === 細項列表：馬卡龍圓角卡片風格 === */
+    .list-item { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding: 15px; 
+      margin-bottom: 10px; /* 改成卡片式，彼此之間有間距 */
+      background: #ffffff; 
+      border: 1px solid #f2f2f2; /* 極淺的柔和邊框 */
+      border-radius: 12px; /* 增加圓角 */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02); /* 輕微空氣感陰影 */
+      cursor: pointer; 
+      transition: transform 0.1s ease;
+      overflow: hidden; /* 🌟 加上這行很重要！這樣左邊的彩色粗線才會跟著卡片變成圓角，不會凸出去 */
+    }
+    .list-item:active { background-color: #fdfdfd; transform: scale(0.98); } /* 點擊時的微縮放回饋 */
+    .list-item:last-child { margin-bottom: 0; }
+    
     .list-info { display: flex; flex-direction: column; }
-    .list-date { font-size: 12px; color: #888; margin-bottom: 4px; }
-    .list-name { font-size: 16px; font-weight: bold; color: #333; }
-    .list-category { font-size: 12px; background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; width: fit-content; } 
-    .list-amount { font-size: 18px; font-weight: bold; color: #d32f2f; }
-    .fab { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); right: 20px; width: 60px; height: 60px; background-color: #28a745; color: white; border: none; border-radius: 50%; font-size: 32px; box-shadow: 0 4px 10px rgba(40,167,69,0.4); cursor: pointer; z-index: 100; display: flex; justify-content: center; align-items: center; }
-    .fab:active { background-color: #218838; transform: scale(0.95); } 
-    .bottom-nav { display: flex; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 10; padding-bottom: env(safe-area-inset-bottom); }
-    .bottom-nav button { flex: 1; padding: 15px 0; background: none; border: none; border-top: 3px solid transparent; font-size: 16px; color: #777; cursor: pointer; }
-    .bottom-nav button.active { color: #007bff; border-top-color: #007bff; font-weight: bold; } 
+    .list-date { font-size: 12px; color: #a0a0a0; margin-bottom: 4px; }
+    .list-name { font-size: 16px; font-weight: bold; color: #333; } /* 🌟 確保名稱是清楚的深黑色 */
+    
+    /* === 下方文字：拿掉所有底色與內邊距 === */
+    .list-category { 
+      font-size: 12px; 
+      color: #777; /* 柔和的深灰色 */
+      margin-top: 4px; 
+      display: block; /* 讓它自己佔據一行 */
+    }
+    
+    .list-amount { font-size: 18px; font-weight: bold; }
+
+    /* === 新增按鈕 FAB (馬卡龍草莓粉) === */
+    .fab { 
+      position: fixed; 
+      bottom: calc(80px + env(safe-area-inset-bottom)); 
+      right: 20px; 
+      width: 60px; 
+      height: 60px; 
+      background-color: #FFB3BA; /* 🌟 核心修改：馬卡龍草莓粉 */
+      color: #555; /* 配合淺粉底色，文字使用深灰色，確保清楚閱讀 */
+      border: none; 
+      border-radius: 50%; 
+      font-size: 32px; 
+      box-shadow: 0 4px 12px rgba(255, 179, 186, 0.6); /* 陰影配合粉色，帶有柔和發光感 */
+      cursor: pointer; 
+      z-index: 100; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      transition: all 0.1s ease-in-out; /* 加入輕微漸變 */
+    }
+    .fab:active { 
+      background-color: #ff9ea6; /* 按下時稍微變深一點的粉色 */
+      transform: scale(0.95); /* 按下時輕微縮小回饋 */
+    } 
+
+    /* === 底部導覽列 (馬卡龍灰系) === */
+    .bottom-nav { 
+      display: flex; 
+      background: #f7f8f9; /* 極淺的馬卡龍灰白底色，增加輕透感 */
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.03); /* 陰影放得很輕柔 */
+      z-index: 10; 
+      padding-bottom: env(safe-area-inset-bottom); /* 避開 iOS 底部控制條 */
+    }
+    .bottom-nav button { 
+      flex: 1; 
+      padding: 15px 0; 
+      background: none; 
+      border: none; 
+      border-top: 3px solid transparent; /* 預留選取時的頂部線條空間 */
+      font-size: 16px; 
+      color: #b5b5b5; /* 柔和的淺灰色 (未選取時) */
+      cursor: pointer; 
+      transition: all 0.2s ease; /* 加入漸變動畫提升質感 */
+    }
+    .bottom-nav button.active { 
+      color: #8c9398; /* 帶有質感的深雲朵灰 (選取時) */
+      border-top-color: #8c9398; /* 頂部線條也是深雲朵灰 */
+      font-weight: bold; 
+    }
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: flex-start; padding-top: 10vh; }
     .modal-overlay.active { display: flex; } 
     .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 80vh; max-height: 80dvh; overscroll-behavior: contain; overflow-y: auto; position: relative; } 
@@ -67,7 +149,14 @@
     .submit-btn { flex: 1; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; }
     .delete-btn { width: 35%; padding: 12px; background-color: #dc3545; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; display: none; } 
     #status { text-align: center; margin-top: 15px; font-weight: bold; }
-    .loading-text { text-align: center; color: #888; margin-top: 20px; font-weight: bold; }
+    .loading-text { 
+      text-align: center; 
+      color: #888; 
+      margin-top: 20px; 
+      font-weight: bold; 
+      grid-column: 1 / -1; /* 🌟 關鍵：讓它在網格中橫跨所有欄位 */
+      white-space: nowrap; /* 🌟 確保文字絕對不換行 */
+    }
 
     /* [網路狀態橫幅] 固定在畫面最上方 */
     .network-status {
@@ -166,6 +255,19 @@
     // AppScript URL
     const scriptURL = 'https://script.google.com/macros/s/AKfycby1fVLEdV4MexxCzF6gRTs2d6b5w9jmxR9aFoMuRWq0g83YWQ8FNTwMTNWRyI8yhKKD/exec'; 
 
+    // 🌟 定義每個類別的專屬顏色
+    const categoryColors = {
+      "餐飲": "#FFB3BA", // 草莓粉
+      "交通": "#BAE1FF", // 晴空藍
+      "生活": "#B5EAD7", // 薄荷綠
+      "購物": "#FFDFD3", // 蜜桃橘
+      "娛樂": "#E2C6FF", // 香芋紫
+      "醫療": "#AEEEEE", // 蘇打綠
+      "學習": "#F3D5A8", // 奶油黃
+      "投資": "#C1C6FC", // 薰衣草藍
+      "其他": "#D9D9D9"  // 雲朵灰
+    };
+
     let currentDate = new Date(); 
     const monthTitle = document.getElementById('monthTitle');
     const calendarGrid = document.getElementById('calendarGrid');
@@ -217,7 +319,10 @@
         if (appData[dateString]) {
           appData[dateString].forEach(exp => { 
             if(exp.type === "支出") {
-              expensesHtml += `<div class="expense-tag">${exp.name} $${exp.price}</div>`; 
+              // 抓取對應顏色，如果未來有新增沒設定到的類別，預設給灰色
+              const bgColor = categoryColors[exp.category] || "#95a5a6"; 
+              // 將 background-color 寫入 style 中
+              expensesHtml += `<div class="expense-tag" style="background-color: ${bgColor};">${exp.name} $${exp.price}</div>`; 
             }
           });
         }
@@ -230,11 +335,29 @@
     }
 
     function createExpenseCard(item) {
-      const color = item.type === "收入" ? "green" : "#d32f2f";
+      const amountColor = item.type === "收入" ? "#2ecc71" : "#ff7675"; 
       const sign = item.type === "收入" ? "+" : "-";
+      
+      // 取得該類別專屬的馬卡龍色
+      const stripeColor = categoryColors[item.category] || "#D9D9D9";
+      
       const card = document.createElement('div');
       card.className = 'list-item';
-      card.innerHTML = `<div class="list-info"><span class="list-date">${item.date}</span><span class="list-name">${item.name}</span><span class="list-category">${item.category} (${item.item})</span></div><div class="list-amount" style="color:${color};">${sign}$${item.price}</div>`;
+      
+      // 🌟 關鍵修改：將顏色加到整張卡片的最左邊，變成一條 6px 的粗線
+      card.style.borderLeft = `12px solid ${stripeColor}`;
+      
+      // 🌟 文字標籤的 style="background-color:..." 已經被移除了，變成純文字
+      card.innerHTML = `
+        <div class="list-info">
+          <span class="list-date">${item.date}</span>
+          <span class="list-name">${item.name}</span>
+          <span class="list-category">${item.category} - ${item.item}</span>
+        </div>
+        <div class="list-amount" style="color:${amountColor};">
+          ${sign}$${item.price}
+        </div>
+      `;
       card.onclick = () => openEditForm(item);
       return card;
     }
@@ -277,8 +400,8 @@
       const labels = sortedCategories.map(item => item.label);
       const data = sortedCategories.map(item => item.value);
 
-      // 統一的馬卡龍色系
-      const bgColors = ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#c2c2f0', '#ffb3e6', '#ffb3b3', '#cce6ff'];
+      // ✅ 修改 1：讓圖表的顏色陣列對應到我們設定的類別顏色
+      const chartColors = labels.map(label => categoryColors[label] || '#95a5a6');
 
       const ctx = document.getElementById('expenseChart').getContext('2d');
       if (myPieChart) { myPieChart.destroy(); }
@@ -318,7 +441,7 @@
           labels: labels, 
           datasets: [{ 
             data: data, 
-            backgroundColor: bgColors.slice(0, data.length), 
+            backgroundColor: chartColors, // ✅ 修改 2：這裡套用新顏色陣列
             borderWidth: 1 
           }] 
         },
@@ -355,7 +478,7 @@
       let legendHtml = '<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; width: 90%; max-width: 280px; margin-left: auto; margin-right: auto; padding-bottom: 20px;">';
       
       sortedCategories.forEach((item, index) => {
-        const color = bgColors[index % bgColors.length];
+        const color = categoryColors[item.label] || '#95a5a6';
         const percentage = Math.round((item.value / totalAmount) * 100);
         
         // ✅ 修改點 2：微調 padding (改為 2px 0)，讓項目本身更緊湊
